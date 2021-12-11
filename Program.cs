@@ -40,13 +40,8 @@ namespace MacroscopRtspUrlGenerator
             var configPaths = ParseArgs(args);
 
             if (configPaths.Count > 0)
-            {
                 foreach (var path in configPaths)
-                {
                     links.UnionWith(CreateLinks(new Configuration(File.ReadAllText(new FileInfo(path).FullName))));
-                }
-            }
-            else ShowHelp();
 
             if (ServerAddress != null && ServerLogin != null)
             {
@@ -57,8 +52,12 @@ namespace MacroscopRtspUrlGenerator
                     HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, "configex?responsetype=json");
                     string authString = $"{ServerLogin}:{CreateMD5(ServerPassword)}";
                     message.Headers.Add("Authorization", $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes(authString))}");
-                    var config = macroscopClient.Send(message).Content.ReadAsStringAsync().Result;
-                    links.UnionWith(CreateLinks(new Configuration(config)));
+
+                    var response = macroscopClient.Send(message);
+                    string config = response.Content.ReadAsStringAsync().Result;
+
+                    if (response.StatusCode == System.Net.HttpStatusCode.OK) links.UnionWith(CreateLinks(new Configuration(config)));
+                    else Console.WriteLine(config);
                 }
                 catch (HttpRequestException e) when (e.InnerException is IOException)
                 {
@@ -73,13 +72,9 @@ namespace MacroscopRtspUrlGenerator
                 try { File.WriteAllText(OutputFile.FullName, table, Encoding.UTF8); }
                 catch (Exception e) { Console.WriteLine(e.Message); }
             }
-            else
+            else if (links.Count > 0)
             {
-                string output = JsonConvert.SerializeObject(links, Formatting.Indented, new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Ignore
-                });
-
+                string output = JsonConvert.SerializeObject(links, Formatting.Indented, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
                 Console.WriteLine(output);
             }
         }
