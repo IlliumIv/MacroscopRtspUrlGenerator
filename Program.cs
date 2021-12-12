@@ -30,6 +30,7 @@ namespace MacroscopRtspUrlGenerator
         static bool UseSecondaryAddress = false;
         static bool UseProxying = false;
         static bool IncludeDisabled = false;
+        static bool HideCredentials = false;
         static FileInfo OutputFile;
         static StreamType? SpecificStream;
 
@@ -129,13 +130,13 @@ namespace MacroscopRtspUrlGenerator
             string link = $"rtsp://{address}:{port}/rtsp?channelid={channelId}&";
             if (IsLinksSoundRequired && isSoundOn) link += $"sound=on&";
             link += $"streamtype={streamType.ToLower()}";
-            if (ServerLogin != null) link += $"&login={ServerLogin}";
-            if (ServerPassword != string.Empty) link += $"&password={CreateMD5(ServerPassword).ToLower()}";
+            if (ServerLogin != null && !HideCredentials) link += $"&login={ServerLogin}";
+            if (ServerPassword != string.Empty && !HideCredentials) link += $"&password={CreateMD5(ServerPassword).ToLower()}";
 
             return link;
         }
 
-        static readonly string[] ParamsDescription = new string[12]
+        static readonly string[] ParamsDescription = new string[13]
         {
             "--server",     // ParamsDescription[0]
             "--port",       // ParamsDescription[1]
@@ -148,7 +149,8 @@ namespace MacroscopRtspUrlGenerator
             "--secondary",  // ParamsDescription[8]
             "--proxy",      // ParamsDescription[9]
             "--disabled",   // ParamsDescription[10]
-            "--output"      // ParamsDescription[11]
+            "--output",     // ParamsDescription[11]
+            "--hide"        // ParamsDescription[12]
         };
 
         private static HashSet<string> ParseArgs(string[] args)
@@ -178,6 +180,7 @@ namespace MacroscopRtspUrlGenerator
                             "-proxy" => (UseProxying = true),                                                              // ParamsDescription[9]
                             "-disabled" => (IncludeDisabled = true),                                                       // ParamsDescription[10]
                             "-output" => (OutputFile = new FileInfo(args[i + 1]), i++),                                    // ParamsDescription[11]
+                            "-hide" => (HideCredentials = true),                                                           // ParamsDescription[12]
                             _ => throw new InvalidOperationException(message: $"Invalid input parameter: \"{args[i]}\""),
                         };
 
@@ -222,18 +225,19 @@ namespace MacroscopRtspUrlGenerator
             var description = $"Usage: MacroscopRtspUrlGenerator [{serverDescription}] [{portDescription}] [{outputDescription}]";
             Console.WriteLine(description);
 
-            splittedString.Add($"[{loginDescription}] [{passwordDescription}] ");
+            splittedString.Add($"[{loginDescription}] [{passwordDescription}] [{ParamsDescription[12]}]");
             splittedString.Add($"[{ParamsDescription[5]}] [{ParamsDescription[7]}] [{ParamsDescription[8]}] [{ParamsDescription[9]}]");
             splittedString.Add($"[{ParamsDescription[10]}] [{streamDescription}] [configex]");
 
             foreach (var str in splittedString) Console.WriteLine("{0,-33}{1}", "", str);
 
             Console.WriteLine(String.Format(
-                "\n {0,-24}{1}\n {2,-24}{3}\n {4,-24}{5}\n {6,-24}{7}\n {8,-24}{9}\n {10,-24}{11}\n {12,-24}{13}\n {14,-24}{15}\n {16,-24}{17}\n {18,-24}{19}\n {20,-24}{21}\n {22,-24}{23}\n",
-                $"{serverDescription}", "Server address.",
-                $"{portDescription}", "Server port.",
-                $"{loginDescription}", "Login.",
-                $"{passwordDescription}", "Password.",
+                "\n {0,-24}{1}\n {2,-24}{3}\n {4,-24}{5}\n {6,-24}{7}\n {8,-24}{9}\n {10,-24}{11}\n {12,-24}{13}\n {14,-24}{15}\n {16,-24}{17}\n {18,-24}{19}\n {20,-24}{21}\n {22,-24}{23}\n {24,-24}{25}\n",
+                $"{serverDescription}", "Server address. Required if no config file specified.",
+                $"{portDescription}", "Server port. Default value is 8080. Only ports without encryption are supported.",
+                $"{loginDescription}", "Login. Required if no config file specified.",
+                $"{passwordDescription}", "Password. Default value is empty string.",
+                $"{ParamsDescription[12]}", "Generate links without credentials.",
                 $"{outputDescription}", "Specify to generate .csv table.",
                 $"{streamDescription}", "Generate links only for specific stream. The minimum value is 0 - Main (first) stream. The maximum value is 3 - ThirdAlternative (fourth) stream.",
                 $"{ParamsDescription[5]}", $"Generate all links per channel. If specified, generator will ignore {ParamsDescription[4]} parameter.",
